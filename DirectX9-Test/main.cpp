@@ -8,11 +8,32 @@
 #pragma comment (lib, "d3d9.lib")
 #pragma comment (lib, "d3dx9.lib")
 
+#include "imgui.h"
+#include "imgui_impl_dx9.h"
+#include "imgui_impl_win32.h"
+#include "imgui_internal.h"
+
+#include "custom.h"
+#include "font_awesome.h"
+#include "font_awesome_data.h"
+#include <vector>
+#include <string>
 
 // Declarations
 LPDIRECT3D9 pD3D; // Pointer  to the Direct3D Interface
 LPDIRECT3DDEVICE9 pD3DDevice; // Pointer to the device class
 LPDIRECT3DVERTEXBUFFER9 v_buffer = nullptr; // Draw Here on the backbuffer
+
+ImFont* icons_font = nullptr;
+ImFont* menuFont;
+ImFont* boldMenuFont;
+ImFont* largerFont;
+
+ImColor accentColor = ImColor(71, 20, 121, 255);
+ImColor accentColorTrans = ImColor(71, 20, 121, 100);
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 struct CUSTOMVERTEX
 {
@@ -28,8 +49,8 @@ CUSTOMVERTEX t_vert[] =
 };
 
 // define the screen resolution
-#define SCREEN_WIDTH  1920
-#define SCREEN_HEIGHT 1080
+#define SCREEN_WIDTH  2560
+#define SCREEN_HEIGHT 1440
 
 // Function prototype
 void initD3D(HWND hWnd); // Setup and initialzition for Direct3D
@@ -136,6 +157,9 @@ int WINAPI WinMain(
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     // sort through and find what code to run for the message given
+    ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam);
+
+
     switch (message)
     {
         // this message is read when the window is closed
@@ -151,6 +175,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
     return DefWindowProc(hWnd, message, wParam, lParam);
 }
 
+
 void initD3D(HWND hWnd)
 {
     pD3D = Direct3DCreate9(D3D_SDK_VERSION); // Create Direct3D Interface
@@ -158,7 +183,7 @@ void initD3D(HWND hWnd)
     D3DPRESENT_PARAMETERS d3dpp; // Struct to hold various device information
 
     ZeroMemory(&d3dpp, sizeof(d3dpp)); // Clear struct
-    d3dpp.Windowed = false;
+    d3dpp.Windowed = true;
     d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD; // Discard old frames
     d3dpp.hDeviceWindow = hWnd;
     d3dpp.BackBufferFormat = D3DFMT_X8R8G8B8; // BackBuffer format to 32-bit
@@ -179,8 +204,132 @@ void initD3D(HWND hWnd)
     pD3DDevice->SetRenderState(D3DRS_LIGHTING, FALSE); // Turn off 3D Lighting
     // Draws the back of the triangle
     pD3DDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+
+    ImGui::CreateContext();
+
+    ImGui_ImplWin32_Init(hWnd);
+    ImGui_ImplDX9_Init(pD3DDevice);
+
+    // Styling Start
+    ImGuiIO& io = ImGui::GetIO();
+    ImGuiStyle& style = ImGui::GetStyle();
+
+    io.ConfigFlags = ImGuiConfigFlags_NoMouseCursorChange;
+
+    io.LogFilename = nullptr;
+    io.IniFilename = nullptr;
+
+    // doing this because i need to merge awesoem font, but it you cant merge the first font
+    ImFontConfig CustomFont;
+    CustomFont.FontDataOwnedByAtlas = false;
+
+    static const ImWchar icons_ranges[] = { 0xf000, 0xf3ff, 0 };
+    ImFontConfig icons_config;
+    icons_config.MergeMode = true;
+    icons_config.PixelSnapH = true;
+    icons_config.OversampleH = 3;
+    icons_config.OversampleV = 3;
+
+    // load a custom font to be able to merge awesome font
+    io.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Custom), sizeof(Custom), 21.f, &CustomFont);
+    // icon font
+    icons_font = io.Fonts->AddFontFromMemoryCompressedTTF(font_awesome_data, font_awesome_size, 19.5f, &icons_config, icons_ranges);
+    // consolas font
+    menuFont = io.Fonts->AddFontFromFileTTF(("C:\\Windows\\Fonts\\Consola.ttf"), 14.f);
+    largerFont = ImGui::GetIO().Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\Consola.ttf", 32.0f); // Change the size to your preference
+
+    boldMenuFont = io.Fonts->AddFontFromFileTTF(("C:\\Windows\\Fonts\\Consola.ttf"), 14.f);
+    io.Fonts->AddFontDefault();
+
+    auto& colors = style.Colors;
+
+    style.ScrollbarRounding = 0;
+    style.WindowRounding = 4.0f;
+
+    colors[ImGuiCol_WindowBg] = ImColor(5, 5, 5, 255);
+    colors[ImGuiCol_ChildBg] = ImColor(8, 8, 8, 255);
+
+    colors[ImGuiCol_TextDisabled] = ImColor(102, 59, 148, 135);
+
+    colors[ImGuiCol_Button] = ImColor(6, 6, 6, 255);
+    colors[ImGuiCol_ButtonActive] = accentColor;
+    colors[ImGuiCol_ButtonHovered] = accentColorTrans;
+
+    colors[ImGuiCol_CheckMark] = accentColor;
+
+    colors[ImGuiCol_FrameBg] = ImColor(0, 0, 0, 255);
+    colors[ImGuiCol_FrameBgActive] = ImColor(0, 0, 0, 255);
+    colors[ImGuiCol_FrameBgHovered] = ImColor(0, 0, 0, 255);
+
+    colors[ImGuiCol_SliderGrab] = accentColorTrans;
+    colors[ImGuiCol_SliderGrabActive] = accentColor;
+
+    colors[ImGuiCol_Header] = accentColor;
+    colors[ImGuiCol_HeaderHovered] = accentColorTrans;
+    colors[ImGuiCol_HeaderActive] = accentColor;
+
+    colors[ImGuiCol_Border] = accentColor;
+    // Styling End
 }
 
+void TopLeftButtons(std::vector<std::string> names, std::vector<int> indexes, int &selected_index)
+{
+    std::vector<ImVec2> sizes = {};
+    float total_area = 0.0f;
+    float max_button_width = 0.0f;
+    float max_button_height = 0.0f;
+
+    const auto& style = ImGui::GetStyle();
+
+    for (std::string& name : names)
+    {
+        const ImVec2 label_size = ImGui::CalcTextSize(name.c_str(), nullptr, true);
+        ImVec2 size = ImGui::CalcItemSize(ImVec2(), label_size.x + style.FramePadding.x * 2.0f, label_size.y + style.FramePadding.y * 2.0f);
+        size.x += 45.5f;
+        size.y += 15.f;
+
+        sizes.push_back(size);
+        total_area += size.x;
+
+        max_button_width = max(max_button_width, size.x);
+        max_button_height = max(max_button_height, size.y);
+    }
+
+    float fWidth = 80; // half of the parent window width
+
+    ImVec2 button_size = ImVec2(max_button_width, max_button_height);
+
+    for (int i = 0; i < names.size(); i++)
+    {
+        ImGui::SetCursorPosX(fWidth - max_button_width / 2);
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 12.5f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.f);
+
+        if (selected_index == indexes[i])
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImColor(71, 20, 121, 255).Value);
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImColor(71, 20, 121, 255).Value);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImColor(71, 20, 121, 255).Value);
+
+            if (ImGui::Button(names[i].c_str(), button_size))
+            {
+                selected_index = indexes[i];
+            }
+            ImGui::PopStyleColor(3);
+        }
+        else
+        {
+            if (ImGui::Button(names[i].c_str(), button_size))
+            {
+                selected_index = indexes[i];
+            }
+        }
+
+        ImGui::PopStyleVar();
+    }
+
+}
+float value = 0.5f;
 void render_frame()
 {
     // Clear Window to Blue
@@ -239,6 +388,102 @@ void render_frame()
 
     // COpy vertexbuffer to backbuffer
     pD3DDevice->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 1);
+
+    ImGui_ImplDX9_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+
+    ImGui::SetNextWindowSize(ImVec2(850, 600));
+    ImGui::SetNextWindowPos(ImVec2(855, 420));
+
+    // Begin Window
+    bool b = true;
+    static int indxex = 0;
+
+    ImGui::Begin(("Pandemonium"), &b, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize );
+    {
+        ImGui::BeginChild(("Sidebar"), ImVec2(160, 0), true);
+        {
+            float window_width = ImGui::GetWindowWidth();
+            ImGui::PushFont(largerFont);
+            // Set the cursor position to center the text
+            ImGui::SetCursorPosX((window_width - ImGui::CalcTextSize("Zenith").x) * 0.5f);
+            
+            ImGui::TextColored(ImColor(71, 20, 121, 255), "Zenith");
+            ImGui::PopFont();
+            TopLeftButtons({ (ICON_FA_CROSSHAIRS" Legitbot"), (ICON_FA_HAND_POINT_UP" Ragebot"), (ICON_FA_SHIELD" Anti Aim"), (ICON_FA_USERS" Visuals"), (ICON_FA_BOMB" Exploits"),
+                (ICON_FA_COGS" Misc") , (ICON_FA_PEN_SQUARE" Lua"), (ICON_FA_TAG" Settings") }, { 0, 1, 2,3, 4, 5, 6, 7 }, indxex);
+        }
+        ImGui::EndChild();
+
+        // draw next to it!
+        ImGui::SameLine();
+
+        ImGui::PushFont(menuFont);
+        ImGui::BeginChild(("setting_area"), ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y), ImGuiChildFlags_Border);
+        {
+            switch (indxex)
+            {
+            case 0:
+                ImGui::BeginChild("TopSpacer", ImVec2(210.f, 18.f), false);  ImGui::EndChild();
+                ImGui::Columns(2, NULL, false);
+                {
+                    ImGui::BeginGroup();
+                    {
+                        bool isChecked = false; // Initialize the checkbox state
+                        
+                        float color[3];
+                        // Create the checkbox with the label "Enable Hello"
+                        ImGui::Checkbox("Enable Hello", &isChecked);
+                        ImGui::Checkbox("Enable Hello2", &isChecked);
+                        ImGui::Checkbox("Enable Hello23", &isChecked);
+                        ImGui::SliderFloat("Slider", &value, 0.0f, 1.0f);
+                        ImGui::SameLine();
+
+                        // Draw the input field
+                        ImGui::SetNextItemWidth(50);
+                        ImGui::InputFloat("##Input", &value, 0.0f, 1.0f, "%.3f");
+                        ImGui::Combo("Combo", &indxex, "Hello\0Hello2\0Hello23\0");
+                        ImGui::ColorEdit3("Color", color);
+
+                        
+                    }
+                    ImGui::EndGroup();
+                }
+
+                break;
+            case 1:
+
+                break;
+            case 3:
+
+                break;
+            case 5:
+ 
+                break;
+            default:
+                // Code to handle other cases
+                break;
+            }
+
+        }
+        ImGui::EndChild();
+        ImGui::PopFont();
+
+    }
+
+    ImVec2 window_pos{ ImGui::GetWindowPos() };
+    ImVec2 window_size{ ImGui::GetWindowSize() };
+    ImVec2 cursor_pos{ ImGui::GetCursorPos() };
+    // Border Animation
+    ImDrawList* draw_list = ImGui::GetForegroundDrawList();
+    draw_list->AddRect({ window_pos.x - 1, window_pos.y - 1 }, { window_pos.x + window_size.x + 1, window_pos.y + window_size.y + 1 }, ImColor(71, 20, 121,255), 4.f, 0, 3.f);
+
+    ImGui::End();
+
+    ImGui::EndFrame();
+    ImGui::Render();
+    ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 
     pD3DDevice->EndScene(); // End 3D Scene (Unlock Memory for other)
 
